@@ -1,5 +1,7 @@
 # Antigravity Homelab Butler
 
+**Language / 語言:** [English](README.md) · [繁體中文](README.zh-TW.md)
+
 LAN control plane + Gemini assistant for a home lab: dashboard, file manager, web terminal, node probes, voice/chat UI.
 
 > **Security warning:** By default there is **no login**. Bind to a trusted LAN, firewall the host, or put a reverse proxy with auth in front before exposing beyond your network.
