@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Nest Hub Bluetooth A2DP every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+Unit=keep-bt-audio.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,40 @@
+# Secrets & local state
+butler_config.json
+butler_memory.json
+node_config.json
+logs/
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+.Python
+
+# Runtime / caches
+static/voice_cache/
+static/downloads/*.zip
+*.pem
+*.key
+*.crt
+certs/
+.homelab/
+
+# Private persona / architecture (keep examples in repo)
+skills/persona.md
+skills/homelab-architecture.md
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local helpers / private notes
+_start_https.py
+*.log
+Deploying Project on Debian.md
+HANDOFF.md
+_deploy/
+scripts/wu-repair-*.ps1
+*.bak

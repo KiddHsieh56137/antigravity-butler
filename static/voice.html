@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0b0f19" />
+  <title>AI 助理語音對話</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script src="/static/i18n.js"></script>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --fg: #e8eef7;
+      --muted: #8b95a8;
+      --accent: #7aa2ff;
+      --listen: #ffb74d;
+      --think: #64b5f6;
+      --speak: #80cbc4;
+      --ok: #69f0ae;
+      --danger: #ff8a80;
+      --safe-b: env(safe-area-inset-bottom, 0px);
+      --safe-t: env(safe-area-inset-top, 0px);
+      --nav-h: 56px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%;
+      background:
+        radial-gradient(900px 420px at 50% -8%, rgba(122,162,255,0.14), transparent 55%),
+        var(--bg);
+      color: var(--fg);
+      font-family: "Noto Sans TC", "PingFang TC", "Segoe UI", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .app {
+      min-height: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: calc(12px + var(--safe-t)) 16px calc(var(--nav-h) + 168px + var(--safe-b));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .ai-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(22, 30, 46, 0.92);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .ai-avatar {
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      background: linear-gradient(145deg, #26c6da, #5c6bc0);
+      color: #0b0f19;
+      font-size: 1.15rem;
+      flex-shrink: 0;
+    }
+    .ai-title { font-size: 1.05rem; font-weight: 700; }
+    .ai-status {
+      font-size: 0.78rem;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 3px;
+    }
+    .ai-status .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+    .ai-status.listen { color: var(--listen); }
+    .ai-status.think { color: var(--think); }
+    .ai-status.speak { color: var(--speak); }
+    .ai-status.ready { color: var(--ok); }
+    .ai-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+    .lang-toggle {
+      display: inline-flex; border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 999px; overflow: hidden;
+    }
+    .lang-toggle button {
+      border: 0; background: transparent; color: var(--muted);
+      padding: 5px 9px; font-size: 0.7rem; cursor: pointer; font: inherit; font-weight: 600;
+    }
+    .lang-toggle button.active {
+      background: rgba(105,240,174,0.12); color: var(--ok);
+    }
+    .clear-btn, .speed-sel {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.78rem;
+      padding: 6px 8px;
+      cursor: pointer;
+    }
+    .speed-sel {
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      color: var(--fg);
+    }
+    .status {
+      text-align: center;
+      padding: 4px 4px 0;
+    }
+    .status h1 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      min-height: 1.3em;
+    }
+    .status p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+    .status.listen h1 { color: var(--listen); }
+    .status.think h1 { color: var(--think); }
+    .status.speak h1 { color: var(--speak); }
+    .status.idle h1 { color: var(--fg); }
+    .viz {
+      height: 28px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 4px;
+      margin: 8px 0 2px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .viz.on { opacity: 1; }
+    .viz span {
+      width: 4px;
+      height: 8px;
+      border-radius: 2px;
+      background: var(--listen);
+      animation: bar 0.9s ease-in-out infinite;
+    }
+    .viz span:nth-child(2) { animation-delay: 0.1s; }
+    .viz span:nth-child(3) { animation-delay: 0.2s; }
+    .viz span:nth-child(4) { animation-delay: 0.05s; }
+    .viz span:nth-child(5) { animation-delay: 0.15s; }
+    .viz.think span { background: var(--think); }
+    .viz.speak span { background: var(--speak); }
+    @keyframes bar {
+      0%, 100% { height: 8px; opacity: 0.55; }
+      50% { height: 26px; opacity: 1; }
+    }
+    .mode-row {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .mode-pill {
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      min-height: 36px;
+    }
+    .mode-pill.active {
+      color: var(--ok);
+      border-color: rgba(105,240,174,0.55);
+      background: rgba(105,240,174,0.1);
+    }
+    .log {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 120px;
+      max-height: calc(100dvh - var(--nav-h) - var(--safe-b) - 280px);
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 12px;
+      -webkit-overflow-scrolling: touch;
+      position: relative;
+      z-index: 1;
+    }
+    .empty {
+      margin: auto;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      opacity: 0.75;
+      line-height: 1.5;
+      padding: 12px;
+    }
+    .bubble {
+      max-width: 92%;
+      padding: 11px 14px;
+      border-radius: 18px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      word-break: break-word;
+      animation: fadeUp 0.22s ease;
+      cursor: pointer;
+    }
+    .bubble.bot { cursor: pointer; }
+    .bubble.user { white-space: pre-wrap; }
+    .bubble.md h1, .bubble.md h2, .bubble.md h3 {
+      margin: 0.55em 0 0.35em;
+      line-height: 1.25;
+      font-weight: 700;
+    }
+    .bubble.md h1 { font-size: 1.2rem; }
+    .bubble.md h2 { font-size: 1.08rem; }
+    .bubble.md h3 { font-size: 1rem; }
+    .bubble.md p { margin: 0.4em 0; }
+    .bubble.md p:first-child { margin-top: 0; }
+    .bubble.md p:last-child { margin-bottom: 0; }
+    .bubble.md ul, .bubble.md ol { margin: 0.4em 0; padding-left: 1.3em; }
+    .bubble.md li { margin: 0.2em 0; }
+    .bubble.md strong { font-weight: 700; color: #fff; }
+    .bubble.md em { font-style: italic; }
+    .bubble.md a { color: #8ec5ff; text-decoration: underline; }
+    .bubble.md img {
+      max-width: 100%;
+      border-radius: 10px;
+      margin: 8px 0;
+      display: block;
+    }
+    .bubble.md code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.82em;
+      background: rgba(0,0,0,0.35);
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+    .bubble.md pre {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    .bubble.md pre code {
+      background: none;
+      padding: 0;
+      font-size: 0.78rem;
+      white-space: pre;
+    }
+    .bubble.md table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0;
+      font-size: 0.82rem;
+      display: block;
+      overflow-x: auto;
+    }
+    .bubble.md th, .bubble.md td {
+      border: 1px solid rgba(255,255,255,0.14);
+      padding: 6px 8px;
+      text-align: left;
+    }
+    .bubble.md th { background: rgba(255,255,255,0.08); font-weight: 700; }
+    .bubble.md blockquote {
+      margin: 8px 0;
+      padding: 4px 0 4px 10px;
+      border-left: 3px solid rgba(122,162,255,0.5);
+      color: var(--muted);
+    }
+    .bubble.md hr {
+      border: 0;
+      border-top: 1px solid rgba(255,255,255,0.12);
+      margin: 10px 0;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: none; }
+    }
+    .bubble.user {
+      align-self: flex-end;
+      background: rgba(122,162,255,0.18);
+      border: 1px solid rgba(122,162,255,0.28);
+      border-bottom-right-radius: 6px;
+    }
+    .bubble.bot {
+      align-self: flex-start;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-bottom-left-radius: 6px;
+    }
+    .dock {
+      position: fixed;
+      left: 0; right: 0;
+      bottom: calc(var(--nav-h) + var(--safe-b));
+      z-index: 10050;
+      padding: 8px 16px 10px;
+      background: linear-gradient(to top, #0b0f19 55%, rgba(11,15,25,0.75) 88%, transparent);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      /* 勿設 pointer-events:none：部分手機 WebView 會讓子按鈕也點不到 */
+    }
+    .live {
+      min-height: 1.1em;
+      font-size: 0.82rem;
+      color: var(--listen);
+      text-align: center;
+      max-width: 92%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .mic-wrap {
+      position: relative;
+      width: 112px; height: 112px;
+      display: grid; place-items: center;
+      z-index: 10060;
+      isolation: isolate;
+    }
+    .ring {
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,183,77,0.35);
+      opacity: 0;
+      transform: scale(0.92);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none !important; /* 絕不可擋住麥克風 */
+      z-index: 0;
+    }
+    .ring.on {
+      opacity: 1;
+      transform: scale(1);
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255,183,77,0.35); }
+      50% { box-shadow: 0 0 0 10px rgba(255,183,77,0); }
+    }
+    .mic {
+      position: relative;
+      z-index: 2;
+      width: 84px; height: 84px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: linear-gradient(160deg, #1a2438, #121826);
+      color: var(--fg);
+      font-size: 1.55rem;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+      pointer-events: auto !important;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .mic::before {
+      /* 擴大觸控熱區 */
+      content: "";
+      position: absolute;
+      inset: -18px;
+      border-radius: 50%;
+      z-index: -1;
+    }
+    .mic:active { transform: scale(0.92); filter: brightness(1.15); }
+    .mic i, .mic svg { pointer-events: none; }
+    .mic.listen {
+      background: linear-gradient(160deg, #3a2e1a, #1a1510);
+      color: var(--listen);
+    }
+    .mic.think {
+      background: linear-gradient(160deg, #1a2e44, #101820);
+      color: var(--think);
+      opacity: 0.85;
+      /* 思考中仍可點取消；勿 pointer-events:none */
+    }
+    .mic.speak {
+      background: linear-gradient(160deg, #1c3331, #101a1a);
+      color: var(--speak);
+    }
+    .hint-row {
+      display: none;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .hint-row.show { display: flex; }
+    .chip {
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      min-height: 36px;
+    }
+    .chip:disabled { display: none; }
+    .keys {
+      font-size: 0.7rem;
+      color: var(--muted);
+      opacity: 0.75;
+    }
+    .bottom-nav {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 10040;
+      height: calc(var(--nav-h) + var(--safe-b));
+      padding: 0 0 var(--safe-b);
+      background: #0e1420;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .bottom-nav .inner {
+      height: var(--nav-h);
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+    }
+    .nav-btn {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      height: 100%;
+      width: 100%;
+      font: inherit;
+      font-size: 0.68rem;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+    }
+    .nav-btn i { font-size: 1.15rem; }
+    .nav-btn.active { color: var(--accent); background: rgba(122,162,255,0.08); }
+    @media (min-width: 900px) {
+      .app { max-width: 640px; padding-bottom: calc(var(--nav-h) + 180px); }
+      .mic { width: 92px; height: 92px; }
+      .mic-wrap { width: 120px; height: 120px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="ai-head">
+      <div class="ai-avatar"><i class="fa-solid fa-microphone"></i></div>
+      <div>
+        <div class="ai-title" data-i18n="voice.title">AI 助理語音對話</div>
+        <div class="ai-status ready" id="ai-status"><span class="dot"></span><span id="ai-status-text">語音就緒</span></div>
+      </div>
+      <div class="ai-actions">
+        <div class="lang-toggle" role="group" data-i18n-title="chatpage.lang" title="語言">
+          <button type="button" data-lang-btn="zh-TW" data-i18n="lang.zh">中</button>
+          <button type="button" data-lang-btn="en" data-i18n="lang.en">EN</button>
+        </div>
+        <select class="speed-sel" id="tts-rate" title="播放速度">
+          <option value="0.9">0.9x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="1.15">1.15x</option>
+          <option value="1.3">1.3x</option>
+        </select>
+        <button type="button" class="clear-btn" id="btn-clear" data-i18n="term.clear">清除</button>
+      </div>
+    </div>
+
+    <div class="status idle" id="status">
+      <h1 id="title">準備就緒</h1>
+      <p id="hint">點下方麥克風開始說話…</p>
+      <div class="viz" id="viz" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div class="mode-row" id="mode-row" role="tablist" aria-label="語音模式">
+      <button type="button" class="mode-pill active" data-mode="tap" data-i18n="chat.modeTap">點擊</button>
+      <button type="button" class="mode-pill" data-mode="ptt" data-i18n="chat.modePtt">長按PTT</button>
+      <button type="button" class="mode-pill" data-mode="continuous" data-i18n="chat.modeCont">連續</button>
+    </div>
+
+    <div class="log" id="log">
+      <div class="empty" id="empty" data-i18n="chat.greeting">你好！我是 AI 管家。點擊麥克風即可對話；播放中可再點麥克風或氣泡打斷語音。</div>
+    </div>
+  </div>
+
+  <div class="dock">
+    <div class="live" id="live"></div>
+    <div class="mic-wrap">
+      <div class="ring" id="ring"></div>
+      <button type="button" class="mic" id="mic" aria-label="開始說話" onclick="window.__homelabMicTap && window.__homelabMicTap(event)">
+        <i class="fa-solid fa-microphone" id="mic-icon"></i>
+      </button>
+    </div>
+    <div class="keys" id="keys-hint">點擊模式 · ESC 停止</div>
+    <div class="hint-row" id="hint-row">
+      <button type="button" class="chip" id="btn-stop" disabled data-i18n="voice.stopPlay">停止播放</button>
+      <button type="button" class="chip" id="btn-cancel" disabled data-i18n="voice.cancel">取消</button>
+    </div>
+  </div>
+
+  <nav class="bottom-nav" aria-label="主導覽">
+    <div class="inner">
+      <a class="nav-btn" href="/m"><i class="fa-solid fa-house"></i><span data-i18n="mobile.navHome">首頁</span></a>
+      <a class="nav-btn active" href="/voice"><i class="fa-solid fa-microphone"></i><span data-i18n="mobile.navVoice">語音</span></a>
+      <a class="nav-btn" href="/m#chat"><i class="fa-solid fa-comment"></i><span data-i18n="mobile.navChat">聊天</span></a>
+      <a class="nav-btn" href="/?desktop=1" title="開啟電腦版 Homelab"><i class="fa-solid fa-display"></i><span data-i18n="mobile.navDesktop">電腦版</span></a>
+    </div>
+  </nav>
+
+  <script>
+    /**
+     * idle → listening → thinking → speaking → (tap: idle | continuous: listening)
+     * Modes: tap | ptt | continuous
+     */
+    const Phase = { IDLE: 'idle', LISTEN: 'listen', THINK: 'think', SPEAK: 'speak' };
+    const InputMode = { TAP: 'tap', PTT: 'ptt', CONTINUOUS: 'continuous' };
+    let phase = Phase.IDLE;
+    let inputMode = InputMode.TAP;
+    let rec = null;
+    let audio = null;
+    let interimTimer = null;
+    let lastInterim = '';
+    let lastSpoken = '';
+    let chatAbort = null;
+    let turnToken = 0;
+    let suppressUntil = 0;
+    let committing = false;
+    let micStarting = false;
+    let listenRestartTimer = null;
+    let continuousArmed = false;
+    let pttHolding = false;
+    let spaceHeld = false;
+
+    const SILENCE_MS = 900;
+    const POST_TTS_MS = 900;
+    const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')
+      || (navigator.maxTouchPoints > 1 && window.matchMedia('(pointer:coarse)').matches);
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const tt = (key, vars) => (window.HomelabI18n ? HomelabI18n.t(key, vars) : key);
+
+    function persistUiLocale(loc) {
+      fetch('/api/system/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ui_locale: loc, rebuild_chat: true }),
+      }).catch(() => {});
+    }
+    function setUiLocale(loc) {
+      if (!window.HomelabI18n) return;
+      HomelabI18n.setLocale(loc);
+      persistUiLocale(loc);
+      if (phase === Phase.IDLE) updateModeUi();
+    }
+    function initI18n() {
+      if (!window.HomelabI18n) return;
+      HomelabI18n.initFromStorage();
+      document.querySelectorAll('[data-lang-btn]').forEach((btn) => {
+        btn.addEventListener('click', () => setUiLocale(btn.getAttribute('data-lang-btn')));
+      });
+      fetch('/api/system/settings')
+        .then((r) => r.json())
+        .then((j) => {
+          if (j && j.ui_locale) HomelabI18n.setLocale(j.ui_locale);
+          if (phase === Phase.IDLE) updateModeUi();
+        })
+        .catch(() => {});
+    }
+
+    const statusEl = document.getElementById('status');
+    const titleEl = document.getElementById('title');
+    const hintEl = document.getElementById('hint');
+    const vizEl = document.getElementById('viz');
+    const liveEl = document.getElementById('live');
+    const logEl = document.getElementById('log');
+    const micBtn = document.getElementById('mic');
+    const micIcon = document.getElementById('mic-icon');
+    const ring = document.getElementById('ring');
+    const btnStop = document.getElementById('btn-stop');
+    const btnCancel = document.getElementById('btn-cancel');
+    const hintRow = document.getElementById('hint-row');
+    const aiStatus = document.getElementById('ai-status');
+    const aiStatusText = document.getElementById('ai-status-text');
+    const keysHint = document.getElementById('keys-hint');
+    const rateSel = document.getElementById('tts-rate');
+
+    function SR() {
+      return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    }
+    function norm(s) {
+      return String(s || '').toLowerCase().replace(/\s+/g, '')
+        .replace(/[，。！？、,.!?;；：:\-~～'"「」『』（）()\[\]{}]/g, '');
+    }
+    function isNoise(t) {
+      const n = norm(t);
+      return !n || n.length < 2 || /^(嗯+|啊+|喔+|呃+|欸+|在|好的|好)$/.test(n);
+    }
+    function looksLikeEcho(t) {
+      const a = norm(t);
+      const b = norm(lastSpoken);
+      if (!a || a.length < 3 || !b || b.length < 3) return false;
+      if (b.includes(a) || a.includes(b.slice(0, Math.min(28, b.length)))) return true;
+      let hit = 0;
+      for (let i = 0; i + 2 < a.length; i += 2) {
+        if (b.includes(a.slice(i, i + 2))) hit += 1;
+      }
+      return hit >= Math.max(3, Math.floor(a.length / 4));
+    }
+    function isEndPhrase(text) {
+      const t = norm(text);
+      return ['沒事了', '没有了', '沒有了', '結束', '關掉語音', '謝謝管家', '先這樣', '再見', '掰掰']
+        .some((p) => t.includes(norm(p)));
+    }
+
+    function updateModeUi() {
+      document.querySelectorAll('.mode-pill').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.mode === inputMode);
+      });
+      if (inputMode === InputMode.PTT) {
+        keysHint.textContent = IS_MOBILE ? '長按麥克風說話 · 放開送出' : 'Space 長按說話 · ESC 停止';
+        if (phase === Phase.IDLE) {
+          titleEl.textContent = tt('chat.modePtt');
+          hintEl.textContent = '按住麥克風（或 Space）開始，放開送出';
+        }
+      } else if (inputMode === InputMode.CONTINUOUS) {
+        keysHint.textContent = '連續模式 · 說「結束」或按停止';
+        if (phase === Phase.IDLE) {
+          titleEl.textContent = continuousArmed ? '連續對話中' : tt('chat.modeCont');
+          hintEl.textContent = continuousArmed ? '播完會自動再聽' : '點一下開始，之後自動來回';
+        }
+      } else {
+        keysHint.textContent = '點擊模式 · ESC 停止';
+        if (phase === Phase.IDLE) {
+          titleEl.textContent = tt('voice.readyTitle');
+          hintEl.textContent = tt('voice.hint');
+        }
+      }
+    }
+
+    function setUi(kind, title, hint) {
+      phase = kind;
+      statusEl.className = 'status ' + kind;
+      titleEl.textContent = title;
+      hintEl.textContent = hint || '';
+      micBtn.className = 'mic' + (kind !== Phase.IDLE ? ' ' + kind : '');
+      ring.className = 'ring' + (kind === Phase.LISTEN ? ' on' : '');
+      if (kind !== Phase.LISTEN) liveEl.textContent = '';
+      btnStop.disabled = kind !== Phase.SPEAK;
+      btnCancel.disabled = !(kind === Phase.LISTEN || kind === Phase.THINK);
+      hintRow.classList.toggle('show', kind === Phase.LISTEN || kind === Phase.THINK || kind === Phase.SPEAK);
+      vizEl.className = 'viz' + (kind === Phase.LISTEN || kind === Phase.THINK || kind === Phase.SPEAK ? ' on ' + kind : '');
+      if (kind === Phase.LISTEN) micIcon.className = inputMode === InputMode.PTT ? 'fa-solid fa-hand' : 'fa-solid fa-check';
+      else if (kind === Phase.THINK) micIcon.className = 'fa-solid fa-spinner fa-spin';
+      else if (kind === Phase.SPEAK) micIcon.className = 'fa-solid fa-stop';
+      else micIcon.className = 'fa-solid fa-microphone';
+
+      const statusMap = {
+        idle: continuousArmed ? '連續待命' : tt('chat.voiceReady'),
+        listen: '正在聽你說…',
+        think: tt('chatpage.processing'),
+        speak: '正在回答…',
+      };
+      aiStatus.className = 'ai-status ' + (kind === Phase.IDLE ? 'ready' : kind);
+      aiStatusText.textContent = statusMap[kind] || statusMap.idle;
+      if (kind === Phase.IDLE) updateModeUi();
+    }
+
+    function escapeHtml(text) {
+      return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function renderMarkdown(text) {
+      const raw = String(text || '');
+      try {
+        if (window.marked && window.DOMPurify) {
+          marked.setOptions({ breaks: true, gfm: true });
+          const html = marked.parse(raw);
+          return DOMPurify.sanitize(html, {
+            USE_PROFILES: { html: true },
+            ADD_ATTR: ['target', 'rel'],
+          });
+        }
+      } catch (_) {}
+      return escapeHtml(raw).replace(/\n/g, '<br>');
+    }
+
+    function addBubble(who, text) {
+      const empty = document.getElementById('empty');
+      if (empty) empty.remove();
+      const d = document.createElement('div');
+      d.className = 'bubble ' + who + (who === 'bot' ? ' md' : '');
+      if (who === 'bot') {
+        d.innerHTML = renderMarkdown(text);
+        d.querySelectorAll('a').forEach((a) => {
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        });
+        d.title = '點一下可打斷語音';
+        d.addEventListener('click', (ev) => {
+          if (ev.target && ev.target.closest && ev.target.closest('a')) return;
+          if (phase === Phase.SPEAK) {
+            turnToken += 1;
+            stopAudio();
+            afterSpeakCycle(true);
+          }
+        });
+      } else {
+        d.textContent = text;
+      }
+      logEl.appendChild(d);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function killMic(hard) {
+      if (listenRestartTimer) { clearTimeout(listenRestartTimer); listenRestartTimer = null; }
+      if (interimTimer) { clearTimeout(interimTimer); interimTimer = null; }
+      lastInterim = '';
+      if (!rec) return;
+      const r = rec;
+      rec = null;
+      try {
+        r.onresult = null;
+        r.onerror = null;
+        r.onend = null;
+        if (hard) r.abort();
+        else r.stop();
+      } catch (_) {
+        try { r.abort(); } catch (__) {}
+      }
+    }
+
+    function stopAudio() {
+      if (audio) {
+        try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch (_) {}
+        audio = null;
+      }
+      if (window.speechSynthesis) {
+        try { speechSynthesis.cancel(); } catch (_) {}
+      }
+    }
+
+    async function unlockAudio() {
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) {
+          const ctx = new Ctx();
+          if (ctx.state === 'suspended') await ctx.resume();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          gain.gain.value = 0.0001;
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.01);
+        }
+      } catch (_) {}
+    }
+
+    function goIdle(title, hint) {
+      turnToken += 1;
+      killMic();
+      stopAudio();
+      if (chatAbort) { try { chatAbort.abort(); } catch (_) {} chatAbort = null; }
+      committing = false;
+      pttHolding = false;
+      setUi(Phase.IDLE, title || (continuousArmed ? '連續待命' : tt('voice.readyTitle')), hint || '');
+    }
+
+    async function ensureMicPermission() {
+      // 非 HTTPS 的區網 IP：很多手機 getUserMedia 會直接失敗或一直卡住
+      const secureOk = window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      if (!secureOk) {
+        // 仍嘗試語音辨識（Chrome 有時可不經 getUserMedia）
+        return true;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
+      try {
+        const gum = navigator.mediaDevices.getUserMedia({ audio: true });
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('mic-timeout')), 4000));
+        const s = await Promise.race([gum, timeout]);
+        s.getTracks().forEach((t) => t.stop());
+        return true;
+      } catch (err) {
+        const msg = String((err && err.message) || err || '');
+        if (msg.includes('mic-timeout')) {
+          setUi(Phase.IDLE, '麥克風權限逾時', '請允許麥克風，或改用桌面 Chrome');
+        } else {
+          setUi(Phase.IDLE, '需要麥克風權限', '請允許後再試（建議 Chrome / Edge）');
+        }
+        return false;
+      }
+    }
+
+    async function afterSpeakCycle(interrupted) {
+      suppressUntil = Date.now() + POST_TTS_MS;
+      if (inputMode === InputMode.CONTINUOUS && continuousArmed) {
+        setUi(Phase.IDLE, interrupted ? '已打斷' : '即將再聽…', '');
+        await sleep(POST_TTS_MS + (IS_MOBILE ? 200 : 80));
+        if (inputMode === InputMode.CONTINUOUS && continuousArmed && phase === Phase.IDLE) {
+          await startListening();
+        }
+      } else {
+        continuousArmed = false;
+        setUi(Phase.IDLE, interrupted ? '已停止' : '準備就緒', interrupted ? '' : '點麥克風繼續');
+      }
+    }
+
+    async function speak(text) {
+      const cleaned = String(text || '').replace(/\s+/g, ' ').trim();
+      if (!cleaned) return;
+      const my = turnToken;
+      killMic(false);
+      stopAudio();
+      lastSpoken = cleaned;
+      setUi(Phase.SPEAK, '回答中', '再點麥克風可打斷');
+      suppressUntil = Date.now() + 60000;
+      let objUrl = null;
+      const rate = parseFloat(rateSel.value || '1') || 1;
+      try {
+        const url = '/api/tts?text=' + encodeURIComponent(cleaned.slice(0, 600));
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('TTS HTTP ' + resp.status);
+        const blob = await resp.blob();
+        if (!blob || blob.size < 64) throw new Error('TTS empty');
+        objUrl = URL.createObjectURL(blob);
+        const a = new Audio(objUrl);
+        a.playbackRate = Math.min(1.5, Math.max(0.8, rate));
+        audio = a;
+        await new Promise((resolve) => {
+          let done = false;
+          let max = null;
+          const fin = () => {
+            if (done) return;
+            done = true;
+            if (max) clearTimeout(max);
+            resolve();
+          };
+          const fallbackMs = Math.min(90000, Math.max(8000, 3500 + cleaned.length * 160));
+          max = setTimeout(fin, fallbackMs);
+          a.onloadedmetadata = () => {
+            const dur = a.duration;
+            if (dur && isFinite(dur) && dur > 0) {
+              clearTimeout(max);
+              max = setTimeout(fin, Math.ceil((dur * 1000) / rate) + 2000);
+            }
+          };
+          a.onended = fin;
+          a.onerror = fin;
+          a.play().catch(fin);
+        });
+      } finally {
+        if (audio) {
+          try { audio.pause(); } catch (_) {}
+        }
+        audio = null;
+        if (objUrl) {
+          try { URL.revokeObjectURL(objUrl); } catch (_) {}
+        }
+        if (my === turnToken) await afterSpeakCycle(false);
+      }
+    }
+
+    async function handleUtterance(raw) {
+      if (committing) return;
+      if (phase === Phase.THINK || phase === Phase.SPEAK) return;
+      const text = String(raw || '').trim();
+      if (!text || isNoise(text)) {
+        if (inputMode === InputMode.CONTINUOUS && continuousArmed) {
+          setUi(Phase.IDLE, '沒聽清楚', '再試一次…');
+          await sleep(400);
+          await startListening();
+        } else {
+          goIdle('沒聽清楚', '再試一次');
+        }
+        return;
+      }
+      if (looksLikeEcho(text)) {
+        if (inputMode === InputMode.CONTINUOUS && continuousArmed) {
+          await sleep(POST_TTS_MS);
+          await startListening();
+        } else {
+          goIdle('已略過回音', '');
+        }
+        return;
+      }
+
+      if (isEndPhrase(text)) {
+        continuousArmed = false;
+        committing = true;
+        const my = ++turnToken;
+        killMic(false);
+        addBubble('user', text);
+        addBubble('bot', '好的，有需要再叫我。');
+        await speak('好的，有需要再叫我。');
+        if (my === turnToken) {
+          continuousArmed = false;
+          setUi(Phase.IDLE, '準備就緒', '點麥克風開始');
+        }
+        committing = false;
+        return;
+      }
+
+      committing = true;
+      const my = ++turnToken;
+      killMic(false);
+      stopAudio();
+      setUi(Phase.THINK, '思考中…', '');
+      addBubble('user', text);
+
+      let reply = '';
+      chatAbort = new AbortController();
+      try {
+        const r = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text }),
+          signal: chatAbort.signal,
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.detail || ('HTTP ' + r.status));
+        reply = j.reply || '好的。';
+      } catch (e) {
+        if (e.name === 'AbortError') { committing = false; return; }
+        reply = '出錯了：' + (e.message || e);
+      } finally {
+        chatAbort = null;
+      }
+
+      if (my !== turnToken) { committing = false; return; }
+      addBubble('bot', reply);
+      await speak(reply);
+      committing = false;
+    }
+
+    async function startListening() {
+      if (micStarting || committing) return;
+      const Ctor = SR();
+      if (!Ctor) {
+        setUi(Phase.IDLE, '不支援語音辨識', '請用 Chrome / Edge');
+        return;
+      }
+      micStarting = true;
+      try {
+        killMic(false);
+        stopAudio();
+        if (!(await ensureMicPermission())) return;
+        await unlockAudio();
+        if (IS_MOBILE) await sleep(350);
+        committing = false;
+        suppressUntil = 0;
+        const hint = inputMode === InputMode.PTT
+          ? '放開即可送出'
+          : (IS_MOBILE ? '說完停一下，或點 ✓ 送出' : '停頓一下會自動送出');
+        setUi(Phase.LISTEN, '正在聽…', hint);
+
+        const r = new Ctor();
+        rec = r;
+        r.lang = 'zh-TW';
+        // PTT / mobile: non-continuous is more reliable; desktop tap can use continuous
+        r.continuous = (inputMode !== InputMode.PTT) && !IS_MOBILE;
+        r.interimResults = true;
+        r.maxAlternatives = 1;
+
+        const queueCommit = (text, delay) => {
+          if (inputMode === InputMode.PTT && pttHolding) {
+            lastInterim = String(text || '').trim();
+            liveEl.textContent = lastInterim;
+            return;
+          }
+          const s = String(text || '').trim();
+          if (!s) return;
+          lastInterim = s;
+          if (interimTimer) clearTimeout(interimTimer);
+          interimTimer = setTimeout(() => {
+            const pending = (lastInterim || '').trim();
+            lastInterim = '';
+            interimTimer = null;
+            if (pending && phase === Phase.LISTEN) handleUtterance(pending);
+          }, delay);
+        };
+
+        r.onresult = (ev) => {
+          if (phase !== Phase.LISTEN || rec !== r) return;
+          if (Date.now() < suppressUntil) return;
+          let finalText = '';
+          let interim = '';
+          let sawFinal = false;
+          for (let i = ev.resultIndex; i < ev.results.length; i++) {
+            const row = ev.results[i];
+            const top = row[0] ? row[0].transcript : '';
+            if (row.isFinal) { finalText += top; sawFinal = true; }
+            else interim += top;
+          }
+          const live = (finalText || interim).trim();
+          if (live) liveEl.textContent = live;
+
+          if (sawFinal && finalText.trim()) {
+            queueCommit(finalText.trim(), inputMode === InputMode.PTT ? 80 : (IS_MOBILE ? 180 : 280));
+            return;
+          }
+          if (interim.trim()) queueCommit(interim.trim(), IS_MOBILE ? 1100 : SILENCE_MS);
+        };
+
+        r.onspeechend = () => {
+          if (phase !== Phase.LISTEN || rec !== r) return;
+          if (inputMode === InputMode.PTT && pttHolding) return;
+          const pending = (lastInterim || liveEl.textContent || '').trim();
+          if (pending) queueCommit(pending, 350);
+        };
+
+        r.onerror = (e) => {
+          if (rec !== r) return;
+          const code = String(e.error || '');
+          if (code === 'no-speech' || code === 'aborted') return;
+          if (code === 'not-allowed' || code === 'service-not-allowed') {
+            continuousArmed = false;
+            goIdle('需要麥克風權限', '請在瀏覽器允許麥克風');
+            return;
+          }
+          if (code === 'network') {
+            goIdle('語音服務離線', '需能連到 Google 語音（檢查網路）');
+            return;
+          }
+          if (code === 'audio-capture') {
+            goIdle('找不到麥克風', '請檢查權限或關閉其他佔用 App');
+            return;
+          }
+          hintEl.textContent = '辨識中斷：' + code;
+        };
+
+        r.onend = () => {
+          if (rec !== r) return;
+          rec = null;
+          if (phase === Phase.LISTEN && !committing) {
+            if (inputMode === InputMode.PTT && pttHolding) {
+              listenRestartTimer = setTimeout(() => {
+                listenRestartTimer = null;
+                if (phase === Phase.LISTEN && pttHolding && !rec && !committing) startListening();
+              }, 200);
+              return;
+            }
+            const pending = (lastInterim || liveEl.textContent || '').trim();
+            if (pending) {
+              handleUtterance(pending);
+              return;
+            }
+            if (inputMode === InputMode.CONTINUOUS && continuousArmed) {
+              listenRestartTimer = setTimeout(() => {
+                listenRestartTimer = null;
+                if (phase === Phase.LISTEN && !rec && !committing && !micStarting) startListening();
+              }, IS_MOBILE ? 500 : 150);
+            } else if (inputMode !== InputMode.PTT) {
+              goIdle('沒聽到內容', '再點一次麥克風');
+            }
+          }
+        };
+
+        try {
+          r.start();
+        } catch (e) {
+          const m = String(e && e.message || e || '');
+          if (/already started/i.test(m)) return;
+          await sleep(IS_MOBILE ? 600 : 200);
+          try {
+            r.start();
+          } catch (e2) {
+            goIdle('無法啟動麥克風', String(e2 && e2.message || e2 || '').slice(0, 80));
+          }
+        }
+      } finally {
+        micStarting = false;
+      }
+    }
+
+    function commitListening() {
+      if (phase !== Phase.LISTEN) return;
+      const pending = (lastInterim || liveEl.textContent || '').trim();
+      if (interimTimer) { clearTimeout(interimTimer); interimTimer = null; }
+      lastInterim = '';
+      if (pending) handleUtterance(pending);
+      else if (inputMode === InputMode.CONTINUOUS && continuousArmed) startListening();
+      else goIdle('沒聽到內容', '');
+    }
+
+    async function beginSession() {
+      setUi(Phase.IDLE, '啟動中…', '正在開啟麥克風');
+      if (!(await ensureMicPermission())) return;
+      await unlockAudio();
+      if (inputMode === InputMode.CONTINUOUS) continuousArmed = true;
+      await startListening();
+    }
+
+    async function onMicTap() {
+      if (inputMode === InputMode.PTT) return;
+      // 立刻變色，讓使用者知道有按到
+      try { micBtn.style.transform = 'scale(0.94)'; setTimeout(() => { micBtn.style.transform = ''; }, 120); } catch (_) {}
+      if (phase === Phase.THINK) {
+        continuousArmed = false;
+        goIdle('已取消', '');
+        return;
+      }
+      if (phase === Phase.SPEAK) {
+        turnToken += 1;
+        stopAudio();
+        await afterSpeakCycle(true);
+        return;
+      }
+      if (phase === Phase.LISTEN) {
+        commitListening();
+        return;
+      }
+      await beginSession();
+    }
+
+    let lastMicGestureAt = 0;
+    function handleMicGesture(e) {
+      if (inputMode === InputMode.PTT) return;
+      if (e) {
+        try { e.preventDefault(); } catch (_) {}
+        try { e.stopPropagation(); } catch (_) {}
+      }
+      const now = Date.now();
+      if (now - lastMicGestureAt < 450) return;
+      lastMicGestureAt = now;
+      // 立刻給畫面回饋，避免「按了沒反應」的錯覺
+      try {
+        titleEl.textContent = '已點到…';
+        micBtn.style.transform = 'scale(0.92)';
+        setTimeout(() => { micBtn.style.transform = ''; }, 150);
+      } catch (_) {}
+      Promise.resolve(onMicTap()).catch((err) => {
+        goIdle('啟動失敗', String(err && err.message || err || '').slice(0, 80));
+      });
+    }
+    window.__homelabMicTap = handleMicGesture;
+
+    async function pttDown(e) {
+      if (inputMode !== InputMode.PTT) return;
+      if (e && e.cancelable) e.preventDefault();
+      if (phase === Phase.SPEAK) {
+        turnToken += 1;
+        stopAudio();
+        await afterSpeakCycle(true);
+      }
+      if (phase === Phase.THINK || phase === Phase.LISTEN || pttHolding) return;
+      pttHolding = true;
+      await beginSession();
+    }
+
+    function pttUp(e) {
+      if (inputMode !== InputMode.PTT) return;
+      if (e && e.cancelable) e.preventDefault();
+      if (!pttHolding) return;
+      pttHolding = false;
+      if (phase === Phase.LISTEN) commitListening();
+    }
+
+    document.querySelectorAll('.mode-pill').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const next = btn.dataset.mode;
+        if (!next || next === inputMode) return;
+        continuousArmed = false;
+        goIdle();
+        inputMode = next;
+        updateModeUi();
+      });
+    });
+
+    // 手機以 pointerdown 最可靠；同時保留 click／touchend 備援
+    micBtn.addEventListener('pointerdown', (e) => {
+      if (inputMode === InputMode.PTT) {
+        try { micBtn.setPointerCapture(e.pointerId); } catch (_) {}
+        pttDown(e);
+        return;
+      }
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      handleMicGesture(e);
+    });
+    micBtn.addEventListener('pointerup', pttUp);
+    micBtn.addEventListener('pointercancel', pttUp);
+    micBtn.addEventListener('click', handleMicGesture);
+    micBtn.addEventListener('touchend', handleMicGesture, { passive: false });
+    micBtn.addEventListener('pointerleave', (e) => {
+      if (inputMode === InputMode.PTT && pttHolding) pttUp(e);
+    });
+
+    btnStop.addEventListener('click', async () => {
+      if (phase !== Phase.SPEAK) return;
+      turnToken += 1;
+      stopAudio();
+      await afterSpeakCycle(true);
+    });
+    btnCancel.addEventListener('click', () => {
+      continuousArmed = false;
+      if (phase === Phase.LISTEN || phase === Phase.THINK) goIdle('已取消', '');
+    });
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      continuousArmed = false;
+      goIdle();
+      logEl.innerHTML = '<div class="empty" id="empty">' + tt('chatpage.noHistory') + '</div>';
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Escape') {
+        if (phase === Phase.SPEAK) {
+          turnToken += 1;
+          stopAudio();
+          afterSpeakCycle(true);
+        } else if (phase === Phase.LISTEN || phase === Phase.THINK) {
+          continuousArmed = false;
+          goIdle('已停止', '');
+        }
+        return;
+      }
+      if (e.code === 'Space' && inputMode === InputMode.PTT) {
+        const tag = (e.target && e.target.tagName) || '';
+        if (/INPUT|TEXTAREA|SELECT/.test(tag)) return;
+        e.preventDefault();
+        if (spaceHeld) return;
+        spaceHeld = true;
+        pttDown(e);
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      if (e.code === 'Space' && inputMode === InputMode.PTT) {
+        const tag = (e.target && e.target.tagName) || '';
+        if (/INPUT|TEXTAREA|SELECT/.test(tag)) return;
+        e.preventDefault();
+        spaceHeld = false;
+        pttUp(e);
+      }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && (phase === Phase.LISTEN || phase === Phase.SPEAK)) {
+        continuousArmed = false;
+        goIdle('已暫停', '');
+      }
+    });
+
+    if (!SR()) {
+      setUi(Phase.IDLE, '不支援語音辨識', '請用 Chrome / Edge 開啟本頁（勿用 LINE／FB 內建瀏覽器）');
+    } else {
+      const secureOk = window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      if (!secureOk) {
+        setUi(Phase.IDLE, tt('voice.readyTitle'), '區網 HTTP 下部分手機限制麥克風；若無反應請用桌面 Chrome，或改 HTTPS');
+      } else {
+        setUi(Phase.IDLE, tt('voice.readyTitle'), tt('voice.hint'));
+      }
+      updateModeUi();
+    }
+    initI18n();
+  </script>
+</body>
+</html>

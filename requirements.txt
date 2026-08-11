@@ -1,0 +1,7 @@
+google-antigravity
+fastapi
+uvicorn
+httpx
+pydantic
+ddgs
+edge-tts

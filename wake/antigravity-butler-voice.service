@@ -1,0 +1,35 @@
+[Unit]
+Description=Antigravity Butler Pi Voice (Friday + Vosk + TTS)
+After=network.target sound.target antigravity-butler.service
+Wants=antigravity-butler.service
+
+[Service]
+Type=simple
+User=past
+Group=audio
+WorkingDirectory=/home/past/antigravity-butler
+Environment=BUTLER_BASE_URL=http://127.0.0.1:8788
+Environment=BUTLER_FRIDAY_MODEL=/home/past/antigravity-butler/wake/Friday.onnx
+Environment=BUTLER_VOSK_MODEL=/home/past/antigravity-butler/wake/vosk-model-small-cn-0.22
+Environment=BUTLER_WAKE_THRESHOLD=0.4
+# Nest Hub BT temporarily off — set BUTLER_BT_ENABLED=1 and BUTLER_TTS_ROUTE=bt to restore
+Environment=BUTLER_BT_ENABLED=0
+Environment=BUTLER_TTS_ROUTE=off
+Environment=BUTLER_HA_MEDIA_ENTITY=media_player.nesthubc902
+Environment=BUTLER_PUBLIC_BASE=http://192.168.1.107:8788
+Environment=BUTLER_BT_MAC=D8:EB:46:C5:23:27
+Environment=BUTLER_BT_SINK=bluez_sink.D8_EB_46_C5_23_27.a2dp_sink
+Environment=BUTLER_CONVERSE_SEC=25
+Environment=BUTLER_EMPTY_LISTEN_RETRIES=1
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=PULSE_RUNTIME_PATH=/run/user/1000/pulse
+Environment=PYTHONUNBUFFERED=1
+# ExecStartPre=-/home/past/antigravity-butler/wake/keep_bt_audio.sh
+ExecStart=/home/past/antigravity-butler/wake/.venv/bin/python /home/past/antigravity-butler/butler_voice_service.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

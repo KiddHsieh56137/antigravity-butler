@@ -1,0 +1,32 @@
+{
+  "gemini_api_key": "",
+  "ha_url": "http://127.0.0.1:8123",
+  "ha_token": "",
+  "node_token": "change-me-butler-node-token",
+  "meshcentral": {
+    "url": "https://192.168.x.x:8089/",
+    "username": "admin",
+    "password": "",
+    "device_group": "Homelab Windows",
+    "vnc_password": "",
+    "vnc_resize": "scale",
+    "vnc_passwords": {}
+  },
+  "nodes": [
+    {
+      "name": "Debian Homelab (local)",
+      "ip": "127.0.0.1"
+    }
+  ],
+  "assistant": {
+    "owner_name": "User",
+    "owner_bio": "",
+    "tts_voice": "zh-TW-HsiaoYuNeural",
+    "tts_rate": "+0%",
+    "tts_pitch": "+0Hz",
+    "auto_voice_wake": true,
+    "weather_place": "",
+    "ui_locale": "zh-TW",
+    "reply_language": "follow_ui"
+  }
+}

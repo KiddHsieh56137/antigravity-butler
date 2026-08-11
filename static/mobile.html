@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0b0f19" />
+  <title>PastMemory · 手機</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="/static/i18n.js"></script>
+  <style>
+    :root {
+      --bg:#0b0f19; --card:rgba(22,30,46,.94); --line:rgba(255,255,255,.1);
+      --text:#e8eef7; --muted:#8b95a8; --green:#00e676; --blue:#4fc3f7; --accent:#7aa2ff;
+      --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px); --nav-h:56px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:"Noto Sans TC","PingFang TC","Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
+    body{background:radial-gradient(900px 420px at 80% -10%,rgba(0,210,255,.12),transparent 60%),radial-gradient(700px 380px at 10% 110%,rgba(0,230,118,.08),transparent 55%),var(--bg)}
+    .shell{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding-bottom:calc(var(--nav-h) + var(--safe-b))}
+    .page{display:none;flex:1;flex-direction:column;min-height:0;padding:calc(12px + var(--safe-t)) 16px 14px;gap:12px}
+    .page.active{display:flex}
+    .page.fill{padding-bottom:0;gap:0}
+
+    .ai-head{display:flex;align-items:center;gap:12px;padding:4px 0 8px}
+    .ai-avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#00e676,#00b0ff);box-shadow:0 0 18px rgba(0,230,118,.35);color:#0b0f19;font-size:1.15rem;flex-shrink:0}
+    .ai-title{font-size:1.05rem;font-weight:700}
+    .ai-status{font-size:.78rem;color:var(--green);display:flex;align-items:center;gap:6px;margin-top:2px}
+    .ai-status .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(0,230,118,.7)}
+    .ai-status.listen{color:#ffb74d}.ai-status.listen .dot{background:#ffb74d;box-shadow:0 0 8px rgba(255,183,77,.7)}
+    .ai-status.think{color:var(--blue)}.ai-status.think .dot{background:var(--blue)}
+    .ai-actions{margin-left:auto;display:flex;gap:6px}
+    .ghost{border:0;background:transparent;color:var(--muted);font-size:.8rem;padding:6px 8px}
+
+    .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .top-right{display:flex;align-items:center;gap:8px}
+    .lang-toggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+    .lang-toggle button{border:0;background:transparent;color:var(--muted);padding:5px 9px;font-size:.7rem;cursor:pointer;font:inherit;font-weight:600}
+    .lang-toggle button.active{background:rgba(0,230,118,.12);color:var(--green)}
+    .brand{display:flex;align-items:center;gap:10px}
+    .logo{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#00d2ff,#00e676);color:#0b0f19}
+    .brand h1{font-size:1.05rem;font-weight:700}.brand p{font-size:.72rem;color:var(--muted)}
+    .pill{font-size:.72rem;padding:6px 10px;border-radius:999px;border:1px solid rgba(0,230,118,.35);color:var(--green);background:rgba(0,230,118,.08)}
+    .pill.off{color:#ff8a80;border-color:rgba(255,138,128,.35);background:rgba(255,138,128,.08)}
+
+    .hero{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .cta{border:1px solid var(--line);background:var(--card);border-radius:16px;padding:16px 14px;color:inherit;text-align:left;min-height:88px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;text-decoration:none;font:inherit}
+    .cta i{font-size:1.35rem}.cta.voice i{color:var(--green)}.cta.chat i{color:var(--blue)}.cta strong{font-size:.95rem}
+
+    .section{font-size:.75rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 8px;text-align:center}
+    .stat .v{font-size:1.02rem;font-weight:700;color:var(--blue)}.stat .l{margin-top:4px;font-size:.68rem;color:var(--muted)}
+
+    .tools{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .tool{border:1px solid var(--line);background:var(--card);border-radius:16px;padding:14px;text-decoration:none;color:inherit;display:flex;align-items:center;gap:12px}
+    .tool i{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.06);color:var(--accent);flex-shrink:0}
+    .tool b{display:block;font-size:.9rem}.tool small{color:var(--muted);font-size:.7rem}
+
+    .log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:12px 0;min-height:0;-webkit-overflow-scrolling:touch}
+    .bubble{max-width:88%;padding:11px 14px;border-radius:16px;font-size:.92rem;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+    .bubble.user{align-self:flex-end;background:rgba(0,230,118,.14);border:1px solid rgba(0,230,118,.28)}
+    .bubble.bot{align-self:flex-start;background:rgba(255,255,255,.06);border:1px solid var(--line)}
+    .empty-hint{margin:auto;text-align:center;color:var(--muted);font-size:.88rem;line-height:1.5;padding:24px 12px}
+    .foot{flex-shrink:0;border-top:1px solid var(--line);background:#0e1420;padding:10px 0 12px;display:flex;gap:8px;align-items:center}
+    .foot input{flex:1;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);padding:12px 14px;font-size:.95rem;outline:none}
+    .foot button{width:44px;height:44px;border-radius:50%;border:0;background:var(--green);color:#0b0f19;flex-shrink:0}
+
+    .tool-bar{display:flex;align-items:center;gap:8px;padding:4px 0 10px;border-bottom:1px solid var(--line)}
+    .tool-bar h2{font-size:1rem;flex:1}
+    .frame{flex:1;min-height:0;border:0;width:100%;border-radius:12px;background:#000;margin-top:10px}
+    .term-out{flex:1;min-height:0;overflow:auto;background:#070b12;border:1px solid var(--line);border-radius:12px;padding:10px;font-family:ui-monospace,Consolas,monospace;font-size:.78rem;white-space:pre-wrap;margin-top:10px}
+    .term-in{display:flex;gap:8px;margin-top:8px}
+    .term-in input{flex:1;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);padding:10px 12px;font-family:ui-monospace,Consolas,monospace;font-size:.85rem}
+    .term-in button{border:0;border-radius:10px;background:var(--green);color:#0b0f19;padding:0 14px;font-weight:700}
+    .files{flex:1;overflow:auto;margin-top:10px;display:flex;flex-direction:column;gap:6px}
+    .file-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--card);border:1px solid var(--line);text-align:left;color:inherit;font:inherit;width:100%}
+    .file-row i{color:var(--accent);width:1.2em;text-align:center}
+    .path{font-size:.72rem;color:var(--muted);word-break:break-all}
+
+    .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;height:calc(var(--nav-h) + var(--safe-b));padding:0 0 var(--safe-b);background:#0e1420;border-top:1px solid rgba(255,255,255,.1)}
+    .bottom-nav .inner{height:var(--nav-h);max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+    .nav-btn{appearance:none;border:0;background:transparent;color:var(--muted);height:100%;width:100%;font:inherit;font-size:.68rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none}
+    .nav-btn i{font-size:1.15rem}.nav-btn.active{color:var(--green);background:rgba(0,230,118,.06)}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <!-- HOME -->
+    <section class="page active" id="page-home">
+      <div class="top">
+        <div class="brand">
+          <div class="logo"><i class="fa-solid fa-microchip"></i></div>
+          <div><h1>PastMemory</h1><p data-i18n="mobile.subtitle">手機控制台</p></div>
+        </div>
+        <div class="top-right">
+          <div class="lang-toggle" role="group" data-i18n-title="chatpage.lang" title="語言">
+            <button type="button" data-lang-btn="zh-TW" data-i18n="lang.zh">中</button>
+            <button type="button" data-lang-btn="en" data-i18n="lang.en">EN</button>
+          </div>
+          <div class="pill" id="online-pill">檢查中</div>
+        </div>
+      </div>
+
+      <div class="ai-head" style="background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px 14px">
+        <div class="ai-avatar"><i class="fa-solid fa-robot"></i></div>
+        <div>
+          <div class="ai-title" data-i18n="chat.title">AI 助理管家</div>
+          <div class="ai-status" id="home-ai-status"><span class="dot"></span><span data-i18n="mobile.standby">在線候命</span></div>
+        </div>
+      </div>
+
+      <div class="hero">
+        <a class="cta voice" href="/voice"><i class="fa-solid fa-microphone"></i><strong data-i18n="mobile.voiceCta">語音對話</strong></a>
+        <button type="button" class="cta chat" id="btn-chat"><i class="fa-solid fa-comments"></i><strong data-i18n="mobile.chatCta">文字對話</strong></button>
+      </div>
+
+      <div class="section" data-i18n="mobile.sys">系統狀態</div>
+      <div class="stats">
+        <div class="stat"><div class="v" id="s-cpu">—</div><div class="l">CPU</div></div>
+        <div class="stat"><div class="v" id="s-mem">—</div><div class="l" data-i18n="nodes.memory">記憶體</div></div>
+        <div class="stat"><div class="v" id="s-disk">—</div><div class="l" data-i18n="nodes.disk">硬碟</div></div>
+      </div>
+
+      <div class="section" data-i18n="mobile.tools">手機工具</div>
+      <div class="tools">
+        <a class="tool" href="#term"><i class="fa-solid fa-terminal"></i><div><b data-i18n="nav.terminal">終端機</b><small data-i18n="mobile.termSub">Debian 指令</small></div></a>
+        <a class="tool" href="#cam"><i class="fa-solid fa-video"></i><div><b data-i18n="nav.camera">攝影機監控</b><small data-i18n="mobile.camSub">即時畫面</small></div></a>
+        <a class="tool" href="#files"><i class="fa-solid fa-folder-open"></i><div><b data-i18n="nav.files">網頁檔案管理</b><small data-i18n="mobile.filesSub">瀏覽本機</small></div></a>
+        <a class="tool" href="#trash"><i class="fa-solid fa-truck"></i><div><b data-i18n="mobile.trash">垃圾車</b><small data-i18n="mobile.trashSub">清運時刻</small></div></a>
+        <a class="tool" href="/downloads/butler-node"><i class="fa-solid fa-download"></i><div><b data-i18n="mobile.downloadProbe">下載探針</b><small data-i18n="mobile.downloadProbeSub">Windows 安裝包</small></div></a>
+      </div>
+    </section>
+
+    <!-- CHAT -->
+    <section class="page fill" id="page-chat">
+      <div class="ai-head">
+        <div class="ai-avatar"><i class="fa-solid fa-robot"></i></div>
+        <div>
+          <div class="ai-title" data-i18n="chat.title">AI 助理管家</div>
+          <div class="ai-status" id="chat-ai-status"><span class="dot"></span><span data-i18n="mobile.chatBusy">文字對話中</span></div>
+        </div>
+        <div class="ai-actions"><button type="button" class="ghost" id="chat-clear" data-i18n="mobile.clear">清除</button></div>
+      </div>
+      <div class="log" id="chat-log"><div class="empty-hint" id="chat-empty" data-i18n="chat.greeting">控燈、管電腦、閒聊都可以<br>直接輸入訊息</div></div>
+      <form class="foot" id="chat-form">
+        <input id="chat-input" placeholder="對管家說話…" data-i18n-placeholder="chatpage.placeholder" autocomplete="off" enterkeyhint="send" />
+        <button type="submit" data-i18n-title="chatpage.send" aria-label="送出"><i class="fa-solid fa-paper-plane"></i></button>
+      </form>
+    </section>
+
+    <!-- TERM -->
+    <section class="page fill" id="page-term">
+      <div class="tool-bar"><button type="button" class="ghost" data-back>←</button><h2 data-i18n="nav.terminal">終端機</h2></div>
+      <label class="path" style="display:block;margin-top:8px"><span data-i18n="mobile.targetPc">目標電腦</span>
+        <select id="term-node" style="width:100%;margin-top:6px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text)"></select>
+      </label>
+      <div class="path" id="term-cwd">/home/past</div>
+      <pre class="term-out" id="term-out">選擇電腦後輸入指令\n</pre>
+      <form class="term-in" id="term-form">
+        <input id="term-input" placeholder="例如：df -h" autocomplete="off" />
+        <button type="submit" data-i18n="mobile.run">執行</button>
+      </form>
+    </section>
+
+    <!-- CAM -->
+    <section class="page fill" id="page-cam">
+      <div class="tool-bar"><button type="button" class="ghost" data-back>←</button><h2 data-i18n="nav.camera">攝影機監控</h2>
+        <a class="ghost" href="http://192.168.1.107:1984/" target="_blank" data-i18n="mobile.fullscreen">全螢幕</a>
+      </div>
+      <iframe class="frame" id="cam-frame" allow="autoplay; fullscreen" allowfullscreen
+        src="http://192.168.1.107:1984/stream.html?src=tapo_c225"></iframe>
+    </section>
+
+    <!-- FILES -->
+    <section class="page fill" id="page-files">
+      <div class="tool-bar"><button type="button" class="ghost" data-back>←</button><h2 data-i18n="nav.files">網頁檔案管理</h2>
+        <button type="button" class="ghost" id="files-up" data-i18n="mobile.up">上一層</button>
+      </div>
+      <label class="path" style="display:block;margin-top:8px"><span data-i18n="mobile.targetPc">目標電腦</span>
+        <select id="files-node" style="width:100%;margin-top:6px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text)"></select>
+      </label>
+      <div class="path" id="files-path">/home/past</div>
+      <div class="files" id="files-list"></div>
+    </section>
+
+    <!-- TRASH -->
+    <section class="page fill" id="page-trash">
+      <div class="tool-bar"><button type="button" class="ghost" data-back>←</button><h2 data-i18n="mobile.trashTitle">垃圾車時刻</h2>
+        <a class="ghost" href="http://192.168.1.107:8787/" target="_blank" data-i18n="mobile.newTab">開新分頁</a>
+      </div>
+      <iframe class="frame" id="trash-frame" src="http://192.168.1.107:8787/"></iframe>
+    </section>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="inner">
+      <a class="nav-btn active" href="#home" data-nav="home"><i class="fa-solid fa-house"></i><span data-i18n="mobile.navHome">首頁</span></a>
+      <a class="nav-btn" href="/voice"><i class="fa-solid fa-microphone"></i><span data-i18n="mobile.navVoice">語音</span></a>
+      <a class="nav-btn" href="#chat" data-nav="chat"><i class="fa-solid fa-comment"></i><span data-i18n="mobile.navChat">聊天</span></a>
+      <a class="nav-btn" href="/?desktop=1"><i class="fa-solid fa-display"></i><span data-i18n="mobile.navDesktop">電腦版</span></a>
+    </div>
+  </nav>
+
+  <script>
+    const pages = {
+      home: document.getElementById('page-home'),
+      chat: document.getElementById('page-chat'),
+      term: document.getElementById('page-term'),
+      cam: document.getElementById('page-cam'),
+      files: document.getElementById('page-files'),
+      trash: document.getElementById('page-trash'),
+    };
+    let busy = false;
+    let fmPath = '/home/past';
+    let termCwd = '/home/past';
+    let termNode = '127.0.0.1';
+    let filesNode = '127.0.0.1';
+    let nodesCache = [];
+    const logEl = document.getElementById('chat-log');
+    const input = document.getElementById('chat-input');
+    const tt = (key, vars) => (window.HomelabI18n ? HomelabI18n.t(key, vars) : key);
+
+    function persistUiLocale(loc) {
+      fetch('/api/system/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ui_locale: loc, rebuild_chat: true }),
+      }).catch(() => {});
+    }
+    function setUiLocale(loc) {
+      if (!window.HomelabI18n) return;
+      HomelabI18n.setLocale(loc);
+      persistUiLocale(loc);
+    }
+    function initI18n() {
+      if (!window.HomelabI18n) return;
+      HomelabI18n.initFromStorage();
+      document.querySelectorAll('[data-lang-btn]').forEach((btn) => {
+        btn.addEventListener('click', () => setUiLocale(btn.getAttribute('data-lang-btn')));
+      });
+      fetch('/api/system/settings')
+        .then((r) => r.json())
+        .then((j) => {
+          if (j && j.ui_locale) HomelabI18n.setLocale(j.ui_locale);
+        })
+        .catch(() => {});
+    }
+
+    function isLocal(ip) { return !ip || ip === '127.0.0.1' || ip === 'localhost'; }
+    function defaultPathFor(ip) {
+      if (isLocal(ip)) return '/home/past';
+      return '此電腦';
+    }
+    function fillNodeSelects() {
+      const termSel = document.getElementById('term-node');
+      const fileSel = document.getElementById('files-node');
+      if (!termSel || !fileSel) return;
+      const opts = (nodesCache.length ? nodesCache : [{ name: 'Debian 本機', ip: '127.0.0.1' }])
+        .map(n => `<option value="${n.ip}">${n.name || n.ip}</option>`)
+        .join('');
+      termSel.innerHTML = opts;
+      fileSel.innerHTML = opts;
+      termSel.value = termNode;
+      fileSel.value = filesNode;
+    }
+    async function loadNodes() {
+      try {
+        const r = await fetch('/api/system/nodes');
+        const j = await r.json();
+        nodesCache = j.nodes || [];
+      } catch (_) {
+        nodesCache = [{ name: 'Debian 本機', ip: '127.0.0.1' }];
+      }
+      fillNodeSelects();
+    }
+    document.getElementById('term-node').addEventListener('change', (e) => {
+      termNode = e.target.value;
+      termCwd = defaultPathFor(termNode);
+      document.getElementById('term-cwd').textContent = termCwd;
+      document.getElementById('term-out').textContent = `已切換：${e.target.options[e.target.selectedIndex].text}\n`;
+    });
+    document.getElementById('files-node').addEventListener('change', (e) => {
+      filesNode = e.target.value;
+      fmPath = defaultPathFor(filesNode);
+      loadFiles(fmPath);
+    });
+
+    function setPage(name) {
+      Object.entries(pages).forEach(([k, el]) => el.classList.toggle('active', k === name));
+      document.querySelectorAll('.nav-btn[data-nav]').forEach((el) => {
+        el.classList.toggle('active', el.getAttribute('data-nav') === (name === 'chat' ? 'chat' : 'home') && (name === 'home' || name === 'chat'));
+      });
+      if (name === 'home') history.replaceState(null, '', '/m');
+      else history.replaceState(null, '', '/m#' + name);
+      if (name === 'chat') setTimeout(() => input.focus(), 40);
+      if (name === 'files') loadFiles(fmPath || defaultPathFor(filesNode));
+      if (name === 'term') fillNodeSelects();
+      if (name === 'cam') {
+        const f = document.getElementById('cam-frame');
+        if (!f.src) f.src = 'http://192.168.1.107:1984/stream.html?src=tapo_c225';
+      }
+      if (name === 'trash') {
+        const f = document.getElementById('trash-frame');
+        if (!f.getAttribute('data-loaded')) { f.src = f.src; f.setAttribute('data-loaded', '1'); }
+      }
+    }
+
+    function routeFromHash() {
+      const h = (location.hash || '#home').replace('#', '') || 'home';
+      setPage(pages[h] ? h : 'home');
+    }
+
+    document.getElementById('btn-chat').onclick = () => setPage('chat');
+    document.querySelectorAll('.nav-btn[data-nav]').forEach((el) => {
+      el.addEventListener('click', (e) => { e.preventDefault(); setPage(el.getAttribute('data-nav')); });
+    });
+    document.querySelectorAll('[data-back]').forEach((el) => el.addEventListener('click', () => setPage('home')));
+    document.querySelectorAll('a.tool[href^="#"]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        setPage(el.getAttribute('href').slice(1));
+      });
+    });
+
+    function addBubble(who, text) {
+      const empty = document.getElementById('chat-empty');
+      if (empty) empty.remove();
+      const d = document.createElement('div');
+      d.className = 'bubble ' + who;
+      d.textContent = text;
+      logEl.appendChild(d);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    document.getElementById('chat-clear').onclick = () => {
+      logEl.innerHTML = '<div class="empty-hint" id="chat-empty">' + tt('chat.greeting') + '</div>';
+    };
+    document.getElementById('chat-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text || busy) return;
+      input.value = '';
+      addBubble('user', text);
+      const st = document.getElementById('chat-ai-status');
+      st.className = 'ai-status think';
+      st.innerHTML = '<span class="dot"></span>' + tt('chatpage.processing');
+      busy = true;
+      try {
+        const r = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error((typeof j.detail === 'string' ? j.detail : '') || ('HTTP ' + r.status));
+        addBubble('bot', j.reply || '好的。');
+      } catch (err) {
+        addBubble('bot', tt('common.error') + '：' + (err.message || err));
+      } finally {
+        busy = false;
+        st.className = 'ai-status';
+        st.innerHTML = '<span class="dot"></span>' + tt('mobile.chatBusy');
+      }
+    });
+
+    // Terminal
+    const termOut = document.getElementById('term-out');
+    document.getElementById('term-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const cmd = document.getElementById('term-input').value.trim();
+      if (!cmd) return;
+      document.getElementById('term-input').value = '';
+      termOut.textContent += `\n$ ${cmd}\n`;
+      try {
+        const r = await fetch('/api/system/terminal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: cmd, cwd: termCwd, node_ip: termNode }),
+        });
+        const j = await r.json();
+        if (j.cwd) {
+          termCwd = j.cwd;
+          document.getElementById('term-cwd').textContent = termCwd;
+        }
+        termOut.textContent += (j.stdout || '') + (j.stderr || '');
+      } catch (err) {
+        termOut.textContent += String(err) + '\n';
+      }
+      termOut.scrollTop = termOut.scrollHeight;
+    });
+
+    // Files
+    async function loadFiles(path) {
+      fmPath = path || defaultPathFor(filesNode);
+      document.getElementById('files-path').textContent = fmPath;
+      const box = document.getElementById('files-list');
+      box.innerHTML = '<div class="empty-hint">' + tt('common.loading') + '</div>';
+      try {
+        const r = await fetch('/api/fm/list?path=' + encodeURIComponent(fmPath) + '&node_ip=' + encodeURIComponent(filesNode));
+        const j = await r.json();
+        const dirs = j.directories || [];
+        const files = j.files || [];
+        if (j.current_path) fmPath = j.current_path;
+        document.getElementById('files-path').textContent = fmPath;
+        box.innerHTML = '';
+        dirs.forEach((d) => {
+          const name = typeof d === 'string' ? d : (d.name || d.path);
+          let full;
+          if (typeof d === 'string') {
+            if (isLocal(filesNode)) full = (fmPath.replace(/\/$/, '') + '/' + name);
+            else full = (fmPath.endsWith('\\') ? fmPath : fmPath + '\\') + name;
+          } else {
+            full = d.path || name;
+          }
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'file-row';
+          btn.innerHTML = `<i class="fa-solid fa-folder"></i><span>${name}</span>`;
+          btn.onclick = () => loadFiles(full);
+          box.appendChild(btn);
+        });
+        (j.drives || []).forEach((d) => {
+          const name = d.label || d.name || d.path;
+          const full = d.path;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'file-row';
+          btn.innerHTML = `<i class="fa-solid fa-hard-drive"></i><span>${name}</span>`;
+          btn.onclick = () => loadFiles(full);
+          box.appendChild(btn);
+        });
+        files.forEach((f) => {
+          const name = typeof f === 'string' ? f : (f.name || '');
+          const row = document.createElement('div');
+          row.className = 'file-row';
+          row.innerHTML = `<i class="fa-solid fa-file"></i><span>${name}</span>`;
+          box.appendChild(row);
+        });
+        if (!dirs.length && !files.length && !(j.drives || []).length) {
+          box.innerHTML = '<div class="empty-hint">' + tt('mobile.emptyFolder') + '</div>';
+        }
+      } catch (err) {
+        box.innerHTML = `<div class="empty-hint">${tt('settings.loadFail')}：${err.message || err}</div>`;
+      }
+    }
+    document.getElementById('files-up').onclick = () => {
+      if (isLocal(filesNode)) {
+        if (fmPath === '/' || !fmPath) return;
+        const parts = fmPath.replace(/\/$/, '').split('/');
+        parts.pop();
+        loadFiles(parts.join('/') || '/');
+      } else {
+        if (!fmPath || fmPath === '此電腦') return;
+        const p = String(fmPath).replace(/\//g, '\\').replace(/\\+$/, '');
+        if (/^[A-Za-z]:$/.test(p)) { loadFiles('此電腦'); return; }
+        const idx = p.lastIndexOf('\\');
+        loadFiles(idx > 0 ? p.slice(0, idx + 1) : '此電腦');
+      }
+    };
+
+    async function loadHealth() {
+      try {
+        const r = await fetch('/api/system/health?node_ip=127.0.0.1');
+        const j = await r.json();
+        document.getElementById('s-cpu').textContent = j.cpu_temp || '—';
+        document.getElementById('s-mem').textContent = j.ram_usage || '—';
+        document.getElementById('s-disk').textContent = j.disk_usage || '—';
+        const pill = document.getElementById('online-pill');
+        pill.textContent = j.status === 'online' ? tt('status.online') : tt('common.error');
+        pill.classList.toggle('off', j.status !== 'online');
+      } catch (_) {
+        document.getElementById('online-pill').textContent = tt('status.offline');
+        document.getElementById('online-pill').classList.add('off');
+      }
+    }
+    initI18n();
+    loadNodes();
+    loadHealth();
+    setInterval(loadHealth, 30000);
+    window.addEventListener('hashchange', routeFromHash);
+    routeFromHash();
+  </script>
+</body>
+</html>
